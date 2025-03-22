@@ -4,14 +4,24 @@
 -- 2. We use INNER JOINs to connect films with categories.
 -- 3. We ensure that only "Animation" category films are included.
 -- 4. Sorting is done alphabetically using ORDER BY title.
-SELECT f.title, f.release_year, f.rating 
-FROM public.film f  
-INNER JOIN public.film_category fc ON f.film_id = fc.film_id  
-INNER JOIN public.category c ON fc.category_id = c.category_id  
-WHERE f.release_year BETWEEN 2017 AND 2019  
-  AND f.rental_rate > 1  
-  AND c.name = 'Animation'
-ORDER BY f.title;
+SELECT 
+    film.title, 
+    film.release_year, 
+    film.rating 
+FROM 
+    public.film AS film  
+INNER JOIN 
+    public.film_category AS film_category 
+    ON film.film_id = film_category.film_id  
+INNER JOIN 
+    public.category AS category 
+    ON film_category.category_id = category.category_id  
+WHERE 
+    film.release_year BETWEEN 2017 AND 2019  
+    AND film.rental_rate > 1  
+    AND UPPER(category.name) = 'ANIMATION'
+ORDER BY 
+    film.title;
 --
 --The revenue earned by each rental store after March 2017 (columns: address and address2 – as one column, revenue)
 -- 1. We concatenate address fields to display them as one.
@@ -19,17 +29,17 @@ ORDER BY f.title;
 -- 3. We group by store address to get total revenue per store.
 -- 4. Sorting is done in descending order to show highest revenue stores first.
 SELECT 
-    CONCAT(a.address, ' ', COALESCE(a.address2, '')) AS store_address,
-    SUM(p.amount) AS revenue
+    CONCAT(addr.address, ' ', addr.address2) AS store_address,
+    SUM(pay.amount) AS revenue,
+    s.store_id 
 FROM rental r
-INNER JOIN payment p ON r.rental_id = p.rental_id
-INNER JOIN customer c ON r.customer_id = c.customer_id
-INNER JOIN store s ON c.store_id = s.store_id
-INNER JOIN address a ON s.address_id = a.address_id
-WHERE p.payment_date > '2017-03-31'
-GROUP BY store_address
+INNER JOIN payment pay ON r.rental_id = pay.rental_id
+INNER JOIN customer cust ON r.customer_id = cust.customer_id
+INNER JOIN store s ON cust.store_id = s.store_id
+INNER JOIN address addr ON s.address_id = addr.address_id
+WHERE pay.payment_date > '2017-04-01'  
+GROUP BY addr.address, addr.address2, s.store_id  
 ORDER BY revenue DESC;
---
 --Top-5 actors by number of movies (released after 2015) they took part 
 --in (columns: first_name, last_name, number_of_movies, sorted by number_of_movies in descending order)
 -- 1. We filter movies released after 2015.
@@ -62,9 +72,9 @@ LIMIT 5;
 --
 SELECT 
     f.release_year,
-    COUNT(CASE WHEN c.name = 'Drama' THEN f.film_id END) AS number_of_drama_movies,
-    COUNT(CASE WHEN c.name = 'Travel' THEN f.film_id END) AS number_of_travel_movies,
-    COUNT(CASE WHEN c.name = 'Documentary' THEN f.film_id END) AS number_of_documentary_movies
+    COUNT(CASE WHEN c.name = 'Drama' THEN 1 END) AS number_of_drama_movies,
+    COUNT(CASE WHEN c.name = 'Travel' THEN 1 END) AS number_of_travel_movies,
+    COUNT(CASE WHEN c.name = 'Documentary' THEN 1 END) AS number_of_documentary_movies
 FROM film f
 INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
@@ -79,22 +89,26 @@ ORDER BY f.release_year DESC;
 -- 3. We determine the last store of each employee.
 -- 4. Sorting by total revenue in descending order to get the top 3.
 --
-WITH StaffRevenue AS (
-    SELECT 
-        p.staff_id,
-        s.first_name,
-        s.last_name,
-        st.store_id AS last_store,
-        SUM(p.amount) AS total_revenue
-    FROM payment p
-    INNER JOIN staff s ON p.staff_id = s.staff_id
-    INNER JOIN store st ON s.store_id = st.store_id
-    WHERE EXTRACT(YEAR FROM p.payment_date) = 2017
-    GROUP BY p.staff_id, s.first_name, s.last_name, st.store_id
-)
-SELECT staff_id, first_name, last_name, last_store, total_revenue
-FROM StaffRevenue
-ORDER BY total_revenue DESC
+SELECT 
+    payment.staff_id,
+    staff.first_name,
+    staff.last_name,
+    store.store_id AS last_store,
+    SUM(payment.amount) AS total_revenue
+FROM 
+    payment AS payment
+INNER JOIN 
+    staff AS staff 
+    ON payment.staff_id = staff.staff_id
+INNER JOIN 
+    store AS store 
+    ON staff.store_id = store.store_id
+WHERE 
+    EXTRACT(YEAR FROM payment.payment_date) = 2017
+GROUP BY 
+    payment.staff_id, staff.first_name, staff.last_name, store.store_id
+ORDER BY 
+    total_revenue DESC
 LIMIT 3;
 
 --Which 5 movies were rented more than others (number of rentals), and what's the expected 
@@ -102,31 +116,31 @@ LIMIT 3;
 -- 1. We count rentals per movie.
 -- 2. We classify movies based on Motion Picture Association film rating system.
 -- 3. We order by rental count and limit to top 5.
-WITH MovieRentals AS (
-    SELECT 
-        f.film_id,
-        f.title,
-        f.rating,
-        COUNT(r.rental_id) AS rental_count
-    FROM rental r
-    INNER JOIN inventory i ON r.inventory_id = i.inventory_id
-    INNER JOIN film f ON i.film_id = f.film_id
-    GROUP BY f.film_id, f.title, f.rating
-)
+-- https://en.wikipedia.org/wiki/Motion_Picture_Association_film_rating_system?utm_source=chatgpt.com source
 SELECT 
-    title, 
-    rental_count,
-    rating,
+    film.title, 
+    COUNT(rental.rental_id) AS rental_count,
+    film.rating,
     CASE 
-        WHEN rating = 'G' THEN 'All ages'
-        WHEN rating = 'PG' THEN '10+ years'
-        WHEN rating = 'PG-13' THEN '13+ years'
-        WHEN rating = 'R' THEN '17+ years'
-        WHEN rating = 'NC-17' THEN '18+ years'
+        WHEN film.rating = 'G' THEN 'All ages'
+        WHEN film.rating = 'PG' THEN '10+ years'
+        WHEN film.rating = 'PG-13' THEN '13+ years'
+        WHEN film.rating = 'R' THEN '17+ years'
+        WHEN film.rating = 'NC-17' THEN '18+ years'
         ELSE 'Unknown'
     END AS expected_age
-FROM MovieRentals
-ORDER BY rental_count DESC
+FROM 
+    rental AS rental
+INNER JOIN 
+    inventory AS inventory 
+    ON rental.inventory_id = inventory.inventory_id
+INNER JOIN 
+    film AS film 
+    ON inventory.film_id = film.film_id
+GROUP BY 
+    film.title, film.rating
+ORDER BY 
+    rental_count DESC
 LIMIT 5;
 
 ------------------------------ Part 3. Which actors/actresses didn't act for a longer period of time than the others? 
