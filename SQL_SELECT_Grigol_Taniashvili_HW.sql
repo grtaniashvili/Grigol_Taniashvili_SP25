@@ -6,12 +6,12 @@
 -- 4. Sorting is done alphabetically using ORDER BY title.
 SELECT f.title, f.release_year, f.rating 
 FROM public.film f  
-JOIN public.film_category fc ON f.film_id = fc.film_id  
-JOIN public.category c ON fc.category_id = c.category_id  
+INNER JOIN public.film_category fc ON f.film_id = fc.film_id  
+INNER JOIN public.category c ON fc.category_id = c.category_id  
 WHERE f.release_year BETWEEN 2017 AND 2019  
   AND f.rental_rate > 1  
   AND c.name = 'Animation'
-order by f.title;
+ORDER BY f.title;
 --
 --The revenue earned by each rental store after March 2017 (columns: address and address2 – as one column, revenue)
 -- 1. We concatenate address fields to display them as one.
@@ -22,10 +22,10 @@ SELECT
     CONCAT(a.address, ' ', COALESCE(a.address2, '')) AS store_address,
     SUM(p.amount) AS revenue
 FROM rental r
-JOIN payment p ON r.rental_id = p.rental_id
-JOIN customer c ON r.customer_id = c.customer_id
-JOIN store s ON c.store_id = s.store_id
-JOIN address a ON s.address_id = a.address_id
+INNER JOIN payment p ON r.rental_id = p.rental_id
+INNER JOIN customer c ON r.customer_id = c.customer_id
+INNER JOIN store s ON c.store_id = s.store_id
+INNER JOIN address a ON s.address_id = a.address_id
 WHERE p.payment_date > '2017-03-31'
 GROUP BY store_address
 ORDER BY revenue DESC;
@@ -43,8 +43,8 @@ WITH ActorMovieCount AS (
         a.last_name,
         COUNT(f.film_id) AS number_of_movies
     FROM actor a
-    JOIN film_actor fa ON a.actor_id = fa.actor_id
-    JOIN film f ON fa.film_id = f.film_id
+    INNER JOIN film_actor fa ON a.actor_id = fa.actor_id
+    INNER JOIN film f ON fa.film_id = f.film_id
     WHERE f.release_year > 2015
     GROUP BY a.actor_id, a.first_name, a.last_name
 )
@@ -66,8 +66,8 @@ SELECT
     COUNT(CASE WHEN c.name = 'Travel' THEN f.film_id END) AS number_of_travel_movies,
     COUNT(CASE WHEN c.name = 'Documentary' THEN f.film_id END) AS number_of_documentary_movies
 FROM film f
-JOIN film_category fc ON f.film_id = fc.film_id
-JOIN category c ON fc.category_id = c.category_id
+INNER JOIN film_category fc ON f.film_id = fc.film_id
+INNER JOIN category c ON fc.category_id = c.category_id
 WHERE c.name IN ('Drama', 'Travel', 'Documentary')
 GROUP BY f.release_year
 ORDER BY f.release_year DESC;
@@ -87,8 +87,8 @@ WITH StaffRevenue AS (
         st.store_id AS last_store,
         SUM(p.amount) AS total_revenue
     FROM payment p
-    JOIN staff s ON p.staff_id = s.staff_id
-    JOIN store st ON s.store_id = st.store_id
+    INNER JOIN staff s ON p.staff_id = s.staff_id
+    INNER JOIN store st ON s.store_id = st.store_id
     WHERE EXTRACT(YEAR FROM p.payment_date) = 2017
     GROUP BY p.staff_id, s.first_name, s.last_name, st.store_id
 )
@@ -109,8 +109,8 @@ WITH MovieRentals AS (
         f.rating,
         COUNT(r.rental_id) AS rental_count
     FROM rental r
-    JOIN inventory i ON r.inventory_id = i.inventory_id
-    JOIN film f ON i.film_id = f.film_id
+    INNER JOIN inventory i ON r.inventory_id = i.inventory_id
+    INNER JOIN film f ON i.film_id = f.film_id
     GROUP BY f.film_id, f.title, f.rating
 )
 SELECT 
@@ -138,8 +138,8 @@ WITH LastMovie AS (
         a.last_name, 
         MAX(f.release_year) AS last_movie_year
     FROM film_actor fa
-    JOIN actor a ON fa.actor_id = a.actor_id
-    JOIN film f ON fa.film_id = f.film_id
+    INNER JOIN actor a ON fa.actor_id = a.actor_id
+    INNER JOIN film f ON fa.film_id = f.film_id
     GROUP BY fa.actor_id, a.first_name, a.last_name
 )
 SELECT 
@@ -160,7 +160,7 @@ Sorts actors by the longest inactive period.
 WITH MovieYears AS (
     SELECT DISTINCT fa.actor_id, f.release_year
     FROM film_actor fa
-    JOIN film f ON fa.film_id = f.film_id
+    INNER JOIN film f ON fa.film_id = f.film_id
 ),
 Gaps AS (
     SELECT 
@@ -171,7 +171,7 @@ Gaps AS (
         MIN(m2.release_year) AS year_2,
         MIN(m2.release_year) - m1.release_year AS gap
     FROM MovieYears m1
-    JOIN MovieYears m2 
+   INNER JOIN MovieYears m2 
         ON m1.actor_id = m2.actor_id 
         AND m2.release_year > m1.release_year
     JOIN actor a ON m1.actor_id = a.actor_id
