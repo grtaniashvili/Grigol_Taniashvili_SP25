@@ -8,20 +8,13 @@ SELECT
     film.title, 
     film.release_year, 
     film.rating 
-FROM 
-    public.film AS film  
-INNER JOIN 
-    public.film_category AS film_category 
-    ON film.film_id = film_category.film_id  
-INNER JOIN 
-    public.category AS category 
-    ON film_category.category_id = category.category_id  
-WHERE 
-    film.release_year BETWEEN 2017 AND 2019  
-    AND film.rental_rate > 1  
-    AND UPPER(category.name) = 'ANIMATION'
-ORDER BY 
-    film.title;
+FROM public.film AS film  
+INNER JOIN public.film_category AS film_category ON film.film_id = film_category.film_id  
+INNER JOIN public.category AS category ON film_category.category_id = category.category_id  
+WHERE film.release_year BETWEEN 2017 AND 2019 AND 
+    film.rental_rate > 1 AND 
+    UPPER(category.name) = 'ANIMATION'
+ORDER BY film.title;
 --
 --The revenue earned by each rental store after March 2017 (columns: address and address2 – as one column, revenue)
 -- 1. We concatenate address fields to display them as one.
@@ -30,15 +23,14 @@ ORDER BY
 -- 4. Sorting is done in descending order to show highest revenue stores first.
 SELECT 
     CONCAT(addr.address, ' ', addr.address2) AS store_address,
-    SUM(pay.amount) AS revenue,
-    s.store_id 
+    SUM(pay.amount) AS total_revenue,
 FROM rental r
 INNER JOIN payment pay ON r.rental_id = pay.rental_id
 INNER JOIN customer cust ON r.customer_id = cust.customer_id
 INNER JOIN store s ON cust.store_id = s.store_id
 INNER JOIN address addr ON s.address_id = addr.address_id
-WHERE pay.payment_date > '2017-04-01'  
-GROUP BY addr.address, addr.address2, s.store_id  
+WHERE pay.payment_date >= '2017-04-01 00:00:00' 
+GROUP BY addr.address, addr.address2 
 ORDER BY revenue DESC;
 --Top-5 actors by number of movies (released after 2015) they took part 
 --in (columns: first_name, last_name, number_of_movies, sorted by number_of_movies in descending order)
@@ -48,7 +40,6 @@ ORDER BY revenue DESC;
 -- 4. We order results in descending order and limit to top 5.
 WITH ActorMovieCount AS (
     SELECT 
-        a.actor_id,
         a.first_name,
         a.last_name,
         COUNT(f.film_id) AS number_of_movies
@@ -78,7 +69,7 @@ SELECT
 FROM film f
 INNER JOIN film_category fc ON f.film_id = fc.film_id
 INNER JOIN category c ON fc.category_id = c.category_id
-WHERE c.name IN ('Drama', 'Travel', 'Documentary')
+WHERE UPPER(c.name) IN ('DRAMA', 'TRAVEL', 'DOCUMENTARY')
 GROUP BY f.release_year
 ORDER BY f.release_year DESC;
 
@@ -89,26 +80,29 @@ ORDER BY f.release_year DESC;
 -- 3. We determine the last store of each employee.
 -- 4. Sorting by total revenue in descending order to get the top 3.
 --
+WITH last_store_per_staff AS (
+    SELECT 
+        payment.staff_id,
+        staff.first_name,
+        staff.last_name,
+        staff.store_id AS last_store_id, 
+        ROW_NUMBER() OVER (PARTITION BY payment.staff_id ORDER BY payment.payment_date DESC) AS rn
+    FROM payment AS payment
+    INNER JOIN staff AS staff ON payment.staff_id = staff.staff_id
+    WHERE EXTRACT(YEAR FROM payment.payment_date) = 2017
+)
 SELECT 
     payment.staff_id,
-    staff.first_name,
-    staff.last_name,
-    store.store_id AS last_store,
+    laststore.first_name,
+    laststore.last_name,
+    laststore.last_store_id,
     SUM(payment.amount) AS total_revenue
-FROM 
-    payment AS payment
-INNER JOIN 
-    staff AS staff 
-    ON payment.staff_id = staff.staff_id
-INNER JOIN 
-    store AS store 
-    ON staff.store_id = store.store_id
-WHERE 
-    EXTRACT(YEAR FROM payment.payment_date) = 2017
-GROUP BY 
-    payment.staff_id, staff.first_name, staff.last_name, store.store_id
-ORDER BY 
-    total_revenue DESC
+FROM payment AS payment
+INNER JOIN last_store_per_staff AS laststore ON payment.staff_id = laststore.staff_id
+WHERE laststore.rn = 1
+AND EXTRACT(YEAR FROM payment.payment_date) = 2017
+GROUP BY payment.staff_id, laststore.first_name, laststore.last_name, laststore.last_store_id
+ORDER BY total_revenue DESC
 LIMIT 3;
 
 --Which 5 movies were rented more than others (number of rentals), and what's the expected 
@@ -117,13 +111,15 @@ LIMIT 3;
 -- 2. We classify movies based on Motion Picture Association film rating system.
 -- 3. We order by rental count and limit to top 5.
 -- https://en.wikipedia.org/wiki/Motion_Picture_Association_film_rating_system?utm_source=chatgpt.com source
+--https://www.bunkamura.co.jp/english/faq/cinema/q10_350.html
+-- Parental guidance is required for children under the age of 12.
 SELECT 
     film.title, 
     COUNT(rental.rental_id) AS rental_count,
     film.rating,
     CASE 
         WHEN film.rating = 'G' THEN 'All ages'
-        WHEN film.rating = 'PG' THEN '10+ years'
+        WHEN film.rating = 'PG' THEN '12+ years'
         WHEN film.rating = 'PG-13' THEN '13+ years'
         WHEN film.rating = 'R' THEN '17+ years'
         WHEN film.rating = 'NC-17' THEN '18+ years'
@@ -147,22 +143,22 @@ LIMIT 5;
 --V1: gap between the latest release_year and current year per each actor;
 WITH LastMovie AS (
     SELECT 
-        fa.actor_id, 
-        a.first_name, 
-        a.last_name, 
-        MAX(f.release_year) AS last_movie_year
-    FROM film_actor fa
-    INNER JOIN actor a ON fa.actor_id = a.actor_id
-    INNER JOIN film f ON fa.film_id = f.film_id
-    GROUP BY fa.actor_id, a.first_name, a.last_name
+        filmactor.actor_id, 
+        actor.first_name, 
+        actor.last_name, 
+        MAX(film.release_year) AS last_movie_year
+    FROM film_actor filmactor
+    INNER JOIN actor actor ON filmactor.actor_id = actor.actor_id
+    INNER JOIN film film ON filmactor.film_id = film.film_id
+    GROUP BY filmactor.actor_id, actor.first_name, actor.last_name
 )
 SELECT 
-    lm.actor_id, 
-    lm.first_name, 
-    lm.last_name, 
-    lm.last_movie_year, 
-    EXTRACT(YEAR FROM CURRENT_DATE) - lm.last_movie_year AS years_since_last_movie
-FROM LastMovie lm
+    lastmovie.actor_id, 
+    lastmovie.first_name, 
+    lastmovie.last_name, 
+    lastmovie.last_movie_year, 
+    EXTRACT(YEAR FROM CURRENT_DATE) - lastmovie.last_movie_year AS years_since_last_movie
+FROM LastMovie lastmovie
 ORDER BY years_since_last_movie DESC
 LIMIT 10;
 --
@@ -172,24 +168,24 @@ Sorts actors by the longest inactive period.
  */
 --V2: gaps between sequential films per each actor;
 WITH MovieYears AS (
-    SELECT DISTINCT fa.actor_id, f.release_year
-    FROM film_actor fa
-    INNER JOIN film f ON fa.film_id = f.film_id
+    SELECT DISTINCT filmactor.actor_id, film.release_year
+    FROM film_actor filmactor
+    INNER JOIN film film ON filmactor.film_id = film.film_id
 ),
 Gaps AS (
     SELECT 
-        m1.actor_id, 
-        a.first_name, 
-        a.last_name, 
-        m1.release_year AS year_1, 
-        MIN(m2.release_year) AS year_2,
-        MIN(m2.release_year) - m1.release_year AS gap
-    FROM MovieYears m1
-   INNER JOIN MovieYears m2 
-        ON m1.actor_id = m2.actor_id 
-        AND m2.release_year > m1.release_year
-    JOIN actor a ON m1.actor_id = a.actor_id
-    GROUP BY m1.actor_id, a.first_name, a.last_name, m1.release_year
+        movieyears1.actor_id, 
+        actor.first_name, 
+        actor.last_name, 
+        movieyears1.release_year AS year_1, 
+        MIN(movieyears2.release_year) AS year_2,
+        MIN(movieyears2.release_year) - movieyears1.release_year AS gap
+    FROM MovieYears movieyears1
+   INNER JOIN MovieYears movieyears2 
+        ON movieyears1.actor_id = movieyears2.actor_id 
+        AND movieyears2.release_year > movieyears1.release_year
+    JOIN actor actor ON movieyears1.actor_id = actor.actor_id
+    GROUP BY movieyears1.actor_id, actor.first_name, actor.last_name, movieyears1.release_year
 )
 SELECT 
     actor_id, 
