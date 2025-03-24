@@ -23,15 +23,15 @@ ORDER BY film.title;
 -- 4. Sorting is done in descending order to show highest revenue stores first.
 SELECT 
     CONCAT(addr.address, ' ', addr.address2) AS store_address,
-    SUM(pay.amount) AS total_revenue,
+    SUM(pay.amount) AS total_revenue
 FROM rental r
 INNER JOIN payment pay ON r.rental_id = pay.rental_id
-INNER JOIN customer cust ON r.customer_id = cust.customer_id
-INNER JOIN store s ON cust.store_id = s.store_id
+INNER JOIN inventory inv ON r.inventory_id = inv.inventory_id
+INNER JOIN store s ON inv.store_id = s.store_id
 INNER JOIN address addr ON s.address_id = addr.address_id
 WHERE pay.payment_date >= '2017-04-01 00:00:00' 
 GROUP BY addr.address, addr.address2 
-ORDER BY revenue DESC;
+ORDER BY total_revenue DESC;
 --Top-5 actors by number of movies (released after 2015) they took part 
 --in (columns: first_name, last_name, number_of_movies, sorted by number_of_movies in descending order)
 -- 1. We filter movies released after 2015.
@@ -85,10 +85,11 @@ WITH last_store_per_staff AS (
         payment.staff_id,
         staff.first_name,
         staff.last_name,
-        staff.store_id AS last_store_id, 
+        s.store_id AS last_store_id, 
         ROW_NUMBER() OVER (PARTITION BY payment.staff_id ORDER BY payment.payment_date DESC) AS rn
     FROM payment AS payment
     INNER JOIN staff AS staff ON payment.staff_id = staff.staff_id
+    INNER JOIN store s on s.store_id = staff.store_id 
     WHERE EXTRACT(YEAR FROM payment.payment_date) = 2017
 )
 SELECT 
