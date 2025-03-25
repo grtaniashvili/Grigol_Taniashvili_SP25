@@ -80,6 +80,7 @@ ORDER BY f.release_year DESC;
 -- 3. We determine the last store of each employee.
 -- 4. Sorting by total revenue in descending order to get the top 3.
 --
+/*
 WITH last_store_per_staff AS (
     SELECT 
         payment.staff_id,
@@ -105,7 +106,49 @@ AND EXTRACT(YEAR FROM payment.payment_date) = 2017
 GROUP BY payment.staff_id, laststore.first_name, laststore.last_name, laststore.last_store_id
 ORDER BY total_revenue DESC
 LIMIT 3;
+*/
+WITH RevenueByEmployee AS (
+    SELECT
+        p.staff_id,
+        SUM(p.amount) AS total_revenue,
+        MAX(p.payment_date) AS last_payment_date
+    FROM payment p
+    WHERE EXTRACT(YEAR FROM p.payment_date) = 2017
+    GROUP BY p.staff_id
+),
+LastStore AS (
+    select distinct
+        payment.staff_id,
+        s.store_id,
+        payment.payment_date
+    FROM payment payment
+    INNER JOIN staff AS staff ON payment.staff_id = staff.staff_id
+    INNER JOIN store s on s.store_id = staff.store_id 
+    WHERE EXTRACT(YEAR FROM payment.payment_date) = 2017
+    AND payment.payment_date = (
+        SELECT MAX(payment_date)
+        FROM payment
+        WHERE staff_id = payment.staff_id
+        AND EXTRACT(YEAR FROM payment_date) = 2017
+    )
+),
+EmployeeStoreRevenue AS (
+    SELECT
+        r.staff_id,
+        r.total_revenue,
+        l.store_id
+    FROM RevenueByEmployee r
+    inner JOIN LastStore l
+        ON r.staff_id = l.staff_id
+)
 
+SELECT
+    es.staff_id,
+    es.total_revenue
+FROM EmployeeStoreRevenue es
+ORDER BY es.total_revenue DESC
+LIMIT 3;
+-- hope this will be right case :)
 --Which 5 movies were rented more than others (number of rentals), and what's the expected 
 --age of the audience for these movies? To determine expected age please use 'Motion Picture Association film rating system
 -- 1. We count rentals per movie.
