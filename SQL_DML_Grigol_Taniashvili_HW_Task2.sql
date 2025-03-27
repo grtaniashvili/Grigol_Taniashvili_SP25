@@ -168,7 +168,7 @@ EXPLAIN ANALYZE
 DELETE FROM table_to_delete
 WHERE REPLACE(col, 'veeeeeeery_long_string','')::int % 3 = 0;
 
-select 
+
 TRUNCATE table_to_delete;
 
 
