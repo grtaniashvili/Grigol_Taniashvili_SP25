@@ -110,30 +110,22 @@ VALUES
     ((SELECT film_id FROM film WHERE UPPER(title) = 'INCEPTION'), 1),  
     ((SELECT film_id FROM film WHERE UPPER(title) = 'THE GODFATHER'), 2);  
 --
-SELECT c.customer_id, c.first_name, c.last_name, COUNT(r.rental_id) AS rental_count, COUNT(p.payment_id) AS payment_count  
-FROM customer c  
-JOIN rental r ON c.customer_id = r.customer_id  
-JOIN payment p ON c.customer_id = p.customer_id  
-GROUP BY c.customer_id, c.first_name, c.last_name  
-HAVING COUNT(r.rental_id) >= 43 AND COUNT(p.payment_id) >= 43  
-LIMIT 1;  
-
-UPDATE customer  
-SET first_name = 'Grigol',  
-    last_name = 'Taniashvili',  
-    email = 'gr.taniashvili@gmail.com',  
-    address_id = (SELECT address_id FROM address ORDER BY RANDOM() LIMIT 1)  
-WHERE customer_id = (SELECT customer_id  
-                     FROM (  
-                         SELECT c.customer_id  
-                         FROM customer c  
-                         JOIN rental r ON c.customer_id = r.customer_id  
-                         JOIN payment p ON c.customer_id = p.customer_id  
-                         GROUP BY c.customer_id  
-                         HAVING COUNT(r.rental_id) >= 43 AND COUNT(p.payment_id) >= 43  
-                         LIMIT 1  
-                     ) AS subquery)
- RETURNING *;
+WITH selected_customer AS (
+    SELECT c.customer_id
+    FROM customer c
+    INNER JOIN rental r ON c.customer_id = r.customer_id
+    INNER JOIN payment p ON c.customer_id = p.customer_id
+    GROUP BY c.customer_id
+    HAVING COUNT(r.rental_id) >= 43 AND COUNT(p.payment_id) >= 43
+    LIMIT 1
+)
+UPDATE customer
+SET first_name = 'Grigol',
+    last_name = 'Taniashvili',
+    email = 'gr.taniashvili@gmail.com',
+    address_id = (SELECT address_id FROM address ORDER BY RANDOM() LIMIT 1)
+WHERE customer_id = (SELECT customer_id FROM selected_customer)
+RETURNING *;
 
 --
 SELECT customer_id FROM customer  
@@ -148,28 +140,28 @@ WHERE customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol
 
 INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id)  
 VALUES  
-    ('2017-01-10 10:00:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'), '2017-01-17 10:00:00', 1),  
+    ('2017-01-10 10:00:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-17 10:00:00', 1),  
 
-    ('2017-01-12 14:30:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'), '2017-01-19 14:30:00', 1),  
+    ('2017-01-12 14:30:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-19 14:30:00', 1),  
 
-    ('2017-01-15 18:45:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'), '2017-01-22 18:45:00', 1);  
+    ('2017-01-15 18:45:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-22 18:45:00', 1);  
 
     
- INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)  
+  INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)  
 VALUES  
-    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'),  
+    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1),  
      1,  
-     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili') LIMIT 1),  
+     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1) LIMIT 1),  
      4.99, '2017-01-10 10:05:00'),  
 
-    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'),  
+    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1),  
      1,  
-     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili') LIMIT 1),  
+     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1) LIMIT 1),  
      9.99, '2017-01-12 14:35:00'),  
 
-    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili'),  
+    ((SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1),  
      1,  
-     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili') LIMIT 1),  
+     (SELECT rental_id FROM rental WHERE inventory_id = (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1) AND customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1) LIMIT 1),  
      19.99, '2017-01-15 18:50:00');  
 -----------------------------------------
 
