@@ -185,7 +185,9 @@ BEGIN
     runtime := end_time - start_time;
     RAISE NOTICE 'Operation started at: %, ended at: %, duration: %', start_time, end_time, runtime;
 END $$;
-
+-- in this part i tried to calculate run time, using start and end times, actually delete operations delets data row by row and takes much more time than truncate, 
+--bacause trancate just clears all data from existing table.
+--here we have to drop table drop table table_to_delete using this command and recreate again tu trancate.
 
 DO $$ 
 DECLARE 
