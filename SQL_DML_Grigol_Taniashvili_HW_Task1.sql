@@ -140,12 +140,30 @@ WHERE customer_id = (SELECT customer_id FROM customer WHERE first_name = 'Grigol
 
 INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id)  
 VALUES  
-    ('2017-01-10 10:00:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-17 10:00:00', 1),  
+    ('2017-01-10 10:00:00', 
+    (SELECT inventory_id FROM inventory WHERE film_id = 
+    (SELECT film_id FROM film WHERE title = 'The Dark Knight') AND store_id = 1 LIMIT 1), 
+    (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), 
+    '2017-01-17 10:00:00', 1)  
+ON CONFLICT (rental_date, inventory_id, customer_id) DO NOTHING;
 
-    ('2017-01-12 14:30:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-19 14:30:00', 1),  
+INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id)  
+VALUES  
+    ('2017-01-12 14:30:00', 
+    (SELECT inventory_id FROM inventory WHERE film_id = 
+    (SELECT film_id FROM film WHERE title = 'Inception') AND store_id = 1 LIMIT 1), 
+    (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), 
+    '2017-01-19 14:30:00', 1)  
+ON CONFLICT (rental_date, inventory_id, customer_id) DO NOTHING;
 
-    ('2017-01-15 18:45:00', (SELECT inventory_id FROM inventory WHERE film_id = (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1), (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), '2017-01-22 18:45:00', 1);  
-
+INSERT INTO rental (rental_date, inventory_id, customer_id, return_date, staff_id)  
+VALUES  
+    ('2017-01-15 18:45:00', 
+    (SELECT inventory_id FROM inventory WHERE film_id = 
+    (SELECT film_id FROM film WHERE title = 'The Godfather') AND store_id = 1 LIMIT 1), 
+    (SELECT customer_id FROM customer WHERE first_name = 'Grigol' AND last_name = 'Taniashvili' LIMIT 1), 
+    '2017-01-22 18:45:00', 1)  
+ON CONFLICT (rental_date, inventory_id, customer_id) DO NOTHING;
     
   INSERT INTO payment (customer_id, staff_id, rental_id, amount, payment_date)  
 VALUES  
