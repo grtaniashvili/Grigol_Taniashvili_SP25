@@ -1,9 +1,11 @@
-drop database auction_db;
+-- I have used my prev HW House Auction database
+--creating database with this command
 create DATABASE auction_db;
 \c auction_db
+-- i searched and this makes database switch same as USE auction_db in mssql. but i switchet manually
 -- Ensure the auction schema exists
 --DROP SCHEMA IF EXISTS auction CASCADE;
-
+--creating new schema
 CREATE SCHEMA IF NOT EXISTS auction;
 
 -- Address Table
@@ -14,7 +16,7 @@ CREATE TABLE IF NOT EXISTS auction.Address (
     state VARCHAR(100) NOT NULL,
     zip_code VARCHAR(20) NOT NULL,
     country VARCHAR(100) NOT NULL,
-    CONSTRAINT unique_address UNIQUE (street_address, city, state, zip_code)
+    CONSTRAINT unique_address UNIQUE (street_address, city, state, zip_code) --this columns must be unique to avoid dublicates
 );
 
 -- Bidder Table with Constraints
@@ -26,8 +28,8 @@ CREATE TABLE IF NOT EXISTS auction.Bidder (
     phone_number VARCHAR(20) NOT NULL,
     address_id INT NOT NULL,
     CONSTRAINT fk_bidder_address FOREIGN KEY (address_id) REFERENCES auction.Address(address_id) ON DELETE CASCADE,
-    CONSTRAINT chk_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'), -- Ensuring valid email format
-    CONSTRAINT chk_bidder_phone CHECK (phone_number ~ '^\+?[0-9]+$') -- Ensuring phone number is numeric (allows optional "+")
+    CONSTRAINT chk_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'), --  valid email format
+    CONSTRAINT chk_bidder_phone CHECK (phone_number ~ '^\+?[0-9]+$') --  phone number is numeric (allows optional "+")
 );
 
 -- Auctioneer Table with Constraints
@@ -37,23 +39,23 @@ CREATE TABLE IF NOT EXISTS auction.Auctioneer (
     last_name VARCHAR(50) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE, 
     phone_number VARCHAR(15) NOT NULL,
-    CONSTRAINT chk_auctioneer_phone CHECK (phone_number ~ '^\+?[0-9]+$') -- Ensures phone number is numeric (allows optional "+")
+    CONSTRAINT chk_auctioneer_phone CHECK (phone_number ~ '^\+?[0-9]+$') 
 );
 
 -- Auction Table with Constraints
 CREATE TABLE IF NOT EXISTS auction.Auction (
     auction_id SERIAL PRIMARY KEY,
     auction_name VARCHAR(255) NOT NULL,
-    auction_date TIMESTAMP NOT NULL CHECK (auction_date > '2000-01-01'), -- Ensuring auction date is after January 1, 2000
+    auction_date TIMESTAMP NOT NULL CHECK (auction_date > '2000-01-01'),
     auctioneer_id INT NOT NULL,
-    CONSTRAINT fk_auction_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id) ON DELETE cascade,
+    CONSTRAINT fk_auction_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id) ON DELETE CASCADE,
 	CONSTRAINT uq_auction_name_date_auctioneer UNIQUE (auction_name, auction_date, auctioneer_id)
  );
 
 -- Category Table with Constraints
 CREATE TABLE IF NOT EXISTS auction.Category (
     category_id SERIAL PRIMARY KEY,
-    category_name VARCHAR(100) NOT NULL UNIQUE -- Enforcing uniqueness for category name
+    category_name VARCHAR(100) NOT NULL UNIQUE -- enforcing uniqueness for category name
 );
 
 -- Item Table with Constraints
@@ -61,7 +63,7 @@ CREATE TABLE IF NOT EXISTS auction.Item (
     item_id SERIAL PRIMARY KEY,
     item_name VARCHAR(255) NOT NULL,
     description TEXT NOT NULL,
-    starting_bid DECIMAL(10,2) NOT NULL CHECK (starting_bid >= 0), -- Ensuring starting bid is not negative
+    starting_bid DECIMAL(10,2) NOT NULL CHECK (starting_bid >= 0), --  starting bid is not negative
     category_id INT NOT NULL,
     CONSTRAINT fk_item_category FOREIGN KEY (category_id) REFERENCES auction.Category(category_id) ON DELETE cascade,
     CONSTRAINT uq_item_name_category UNIQUE (item_name, category_id)
@@ -89,10 +91,10 @@ CREATE TABLE IF NOT EXISTS auction.Bid (
     bid_id SERIAL PRIMARY KEY,
     bidder_id INT NOT NULL,
     item_id INT NOT NULL,
-    bid_amount DECIMAL(10,2) NOT NULL CHECK (bid_amount >= 0), -- Ensuring bid amount is not negative
+    bid_amount DECIMAL(10,2) NOT NULL CHECK (bid_amount >= 0), --  bid amount is not negative
     bid_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_bid_bidder FOREIGN KEY (bidder_id) REFERENCES auction.Bidder(bidder_id) ON DELETE CASCADE,
-    CONSTRAINT fk_bid_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id) ON DELETE cascade,
+    CONSTRAINT fk_bid_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id) ON DELETE CASCADE,
     CONSTRAINT uq_bidder_item_amount UNIQUE (bidder_id, item_id, bid_amount)
 );
 
@@ -310,15 +312,19 @@ INSERT INTO auction.Payment (bidder_id, auction_id, payment_amount, payment_date
 (12, 12, 5200.00, '2024-08-02 16:00:00', 'Completed'),
 (13, 13, 1600.00, '2024-08-06 13:30:00', 'Pending'),
 (14, 14, 2500.00, '2024-08-11 11:00:00', 'Completed'),
-(15, 15, 25500.00, '2024-08-16 09:30:00', 'Completed')
+(15, 15, 25500.00, '2024-08-16 09:30:00', 'Completed'),
+(16, 16, 8900.00, '2024-08-20 14:45:00', 'Completed'),
+(17, 17, 3200.00, '2024-08-25 10:00:00', 'Pending'),
+(18, 18, 15000.00, '2024-08-28 12:15:00', 'Completed'),
+(19, 19, 7100.00, '2024-09-01 11:20:00', 'Failed'),
+(20, 20, 4600.00, '2024-09-05 09:50:00', 'Completed');
 ON CONFLICT(bidder_id, auction_id) DO NOTHING;
 
 
--- Add to Address table (not in auction schema)
+-- add new column record_ts to all table with default value
 ALTER TABLE Address
 ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
 
--- Add to auction tables
 ALTER TABLE auction.Bidder
 ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
 
@@ -349,3 +355,8 @@ ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
 
 select *
 from auction.Address
+
+---ive checked  tables and current date was add
+ALTER TABLE auction.Bidder
+ADD COLUMN full_name VARCHAR GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED;
+-- example of GENERATED ALWAYS AS usage :)
