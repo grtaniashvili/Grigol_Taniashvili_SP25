@@ -11,7 +11,7 @@ CREATE SCHEMA IF NOT EXISTS auction;
 -- Address Table
 CREATE TABLE IF NOT EXISTS auction.Address (
     address_id SERIAL PRIMARY KEY,
-    street_address VARCHAR(255) NOT NULL,
+    street_address VARCHAR(100) NOT NULL,
     city VARCHAR(100) NOT NULL,
     state VARCHAR(100) NOT NULL,
     zip_code VARCHAR(20) NOT NULL,
@@ -24,10 +24,10 @@ CREATE TABLE IF NOT EXISTS auction.Bidder (
     bidder_id SERIAL PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
     last_name VARCHAR(100) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE, -- Enforcing uniqueness for email
+    email VARCHAR(100) NOT NULL UNIQUE, -- Enforcing uniqueness for email
     phone_number VARCHAR(20) NOT NULL,
     address_id INT NOT NULL,
-    CONSTRAINT fk_bidder_address FOREIGN KEY (address_id) REFERENCES auction.Address(address_id) ON DELETE CASCADE,
+    CONSTRAINT fk_bidder_address FOREIGN KEY (address_id) REFERENCES auction.Address(address_id),-- ON DELETE CASCADE,
     CONSTRAINT chk_email CHECK (email ~* '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$'), --  valid email format
     CONSTRAINT chk_bidder_phone CHECK (phone_number ~ '^\+?[0-9]+$') --  phone number is numeric (allows optional "+")
 );
@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS auction.Auctioneer (
     auctioneer_id SERIAL PRIMARY KEY,
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL,
-    email VARCHAR(255) NOT NULL UNIQUE, 
+    email VARCHAR(100) NOT NULL UNIQUE, 
     phone_number VARCHAR(15) NOT NULL,
     CONSTRAINT chk_auctioneer_phone CHECK (phone_number ~ '^\+?[0-9]+$') 
 );
@@ -45,10 +45,10 @@ CREATE TABLE IF NOT EXISTS auction.Auctioneer (
 -- Auction Table with Constraints
 CREATE TABLE IF NOT EXISTS auction.Auction (
     auction_id SERIAL PRIMARY KEY,
-    auction_name VARCHAR(255) NOT NULL,
+    auction_name VARCHAR(100) NOT NULL,
     auction_date TIMESTAMP NOT NULL CHECK (auction_date > '2000-01-01'),
     auctioneer_id INT NOT NULL,
-    CONSTRAINT fk_auction_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id) ON DELETE CASCADE,
+    CONSTRAINT fk_auction_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id),-- ON DELETE CASCADE,
 	CONSTRAINT uq_auction_name_date_auctioneer UNIQUE (auction_name, auction_date, auctioneer_id)
  );
 
@@ -61,11 +61,11 @@ CREATE TABLE IF NOT EXISTS auction.Category (
 -- Item Table with Constraints
 CREATE TABLE IF NOT EXISTS auction.Item (
     item_id SERIAL PRIMARY KEY,
-    item_name VARCHAR(255) NOT NULL,
+    item_name VARCHAR(100) NOT NULL,
     description TEXT NOT NULL,
     starting_bid DECIMAL(10,2) NOT NULL CHECK (starting_bid >= 0), --  starting bid is not negative
     category_id INT NOT NULL,
-    CONSTRAINT fk_item_category FOREIGN KEY (category_id) REFERENCES auction.Category(category_id) ON DELETE cascade,
+    CONSTRAINT fk_item_category FOREIGN KEY (category_id) REFERENCES auction.Category(category_id),-- ON DELETE cascade,
     CONSTRAINT uq_item_name_category UNIQUE (item_name, category_id)
 );
 
@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS auction.Auction_item (
     auction_id INT NOT NULL,
     item_id INT NOT NULL,
     PRIMARY KEY (auction_id, item_id),
-    CONSTRAINT fk_auction_item_auction FOREIGN KEY (auction_id) REFERENCES auction.Auction(auction_id) ON DELETE CASCADE,
+    CONSTRAINT fk_auction_item_auction FOREIGN KEY (auction_id) REFERENCES auction.Auction(auction_id),-- ON DELETE CASCADE,
     CONSTRAINT fk_auction_item_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id) ON DELETE CASCADE
 );
 
@@ -82,8 +82,8 @@ CREATE TABLE IF NOT EXISTS auction.Auction_item (
 CREATE TABLE IF NOT EXISTS auction.Auctioneer_item (
     auctioneer_id INT NOT NULL,
     item_id INT PRIMARY KEY,
-    CONSTRAINT fk_auctioneer_item_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id) ON DELETE CASCADE,
-    CONSTRAINT fk_auctioneer_item_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id) ON DELETE CASCADE
+    CONSTRAINT fk_auctioneer_item_auctioneer FOREIGN KEY (auctioneer_id) REFERENCES auction.Auctioneer(auctioneer_id),-- ON DELETE CASCADE,
+    CONSTRAINT fk_auctioneer_item_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id),-- ON DELETE CASCADE
 );
 
 -- Bid Table with Constraints
@@ -92,9 +92,9 @@ CREATE TABLE IF NOT EXISTS auction.Bid (
     bidder_id INT NOT NULL,
     item_id INT NOT NULL,
     bid_amount DECIMAL(10,2) NOT NULL CHECK (bid_amount >= 0), --  bid amount is not negative
-    bid_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_bid_bidder FOREIGN KEY (bidder_id) REFERENCES auction.Bidder(bidder_id) ON DELETE CASCADE,
-    CONSTRAINT fk_bid_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id) ON DELETE CASCADE,
+    bid_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_bid_bidder FOREIGN KEY (bidder_id) REFERENCES auction.Bidder(bidder_id),-- ON DELETE CASCADE,
+    CONSTRAINT fk_bid_item FOREIGN KEY (item_id) REFERENCES auction.Item(item_id),-- ON DELETE CASCADE,
     CONSTRAINT uq_bidder_item_amount UNIQUE (bidder_id, item_id, bid_amount)
 );
 
@@ -106,8 +106,8 @@ CREATE TABLE IF NOT EXISTS auction.Payment (
     payment_amount DECIMAL(10,2) NOT NULL CHECK (payment_amount >= 0), -- Ensuring payment amount is not negative
     payment_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     payment_status VARCHAR(50) NOT NULL DEFAULT 'Pending' CHECK (payment_status IN ('Pending', 'Completed', 'Failed')), -- Enforcing specific status values
-    CONSTRAINT fk_payment_bidder FOREIGN KEY (bidder_id) REFERENCES auction.Bidder(bidder_id) ON DELETE CASCADE,
-    CONSTRAINT fk_payment_auction FOREIGN KEY (auction_id) REFERENCES auction.Auction(auction_id) ON DELETE cascade,
+    CONSTRAINT fk_payment_bidder FOREIGN KEY (bidder_id) REFERENCES auction.Bidder(bidder_id),-- ON DELETE CASCADE,
+    CONSTRAINT fk_payment_auction FOREIGN KEY (auction_id) REFERENCES auction.Auction(auction_id),-- ON DELETE cascade,
     CONSTRAINT uq_bidder_auction UNIQUE (bidder_id, auction_id)
 );
 
@@ -264,6 +264,24 @@ INSERT INTO auction.Auction_item (auction_id, item_id) VALUES
 (16, 16), (17, 17), (18, 18), (19, 19), (20, 20)
 ON CONFLICT (auction_id, item_id) DO NOTHING;
 
+/*
+INSERT INTO auction.Auctioneer_item (auctioneer_id, item_id)
+SELECT a.auctioneer_id, i.item_id
+FROM (
+    SELECT auctioneer_id, ROW_NUMBER() OVER (ORDER BY auctioneer_id) AS rn
+    FROM auctioneer
+) a
+JOIN (
+    SELECT item_id, ROW_NUMBER() OVER (ORDER BY item_id) AS rn
+    FROM item
+) i ON a.rn = i.rn
+ON CONFLICT (item_id) DO NOTHING;
+
+!!!!
+of course its better tu get data with queries here(like i gave an example above) and then insert like this, i use this approach but here i made for easy way
+
+
+*/
 -- Insert data into Auctioneer_Item (assigning auctioneers to items)
 INSERT INTO auction.Auctioneer_item (auctioneer_id, item_id) VALUES
 (1, 1), (2, 2), (3, 3), (4, 4), (5, 5),
@@ -273,7 +291,7 @@ INSERT INTO auction.Auctioneer_item (auctioneer_id, item_id) VALUES
 ON CONFLICT (item_id) DO NOTHING;
 
 -- Insert data into Bid (bidders placing bids on items)
-INSERT INTO auction.Bid (bidder_id, item_id, bid_amount, bid_time) VALUES
+INSERT INTO auction.Bid (bidder_id, item_id, bid_amount, bid_date) VALUES
 (1, 1, 26000.00, '2024-06-10 14:30:00'),
 (2, 2, 1600.00, '2024-06-12 16:00:00'),
 (3, 3, 52000.00, '2024-06-15 18:00:00'),
@@ -317,12 +335,29 @@ INSERT INTO auction.Payment (bidder_id, auction_id, payment_amount, payment_date
 (17, 17, 3200.00, '2024-08-25 10:00:00', 'Pending'),
 (18, 18, 15000.00, '2024-08-28 12:15:00', 'Completed'),
 (19, 19, 7100.00, '2024-09-01 11:20:00', 'Failed'),
-(20, 20, 4600.00, '2024-09-05 09:50:00', 'Completed');
+(20, 20, 4600.00, '2024-09-05 09:50:00', 'Completed')
 ON CONFLICT(bidder_id, auction_id) DO NOTHING;
 
 
 -- add new column record_ts to all table with default value
-ALTER TABLE Address
+--i dont understand why i can rerun this code, i will add col, then if i want new time value i jus  update prev one
+--0r ill chenck if column exists in each table like first table example i give here
+/*
+DO $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_name = 'address'
+          AND column_name = 'record_ts'
+    ) THEN
+        ALTER TABLE auction.address
+        ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
+    END IF;
+END;
+$$;
+*/
+ALTER TABLE auction.Address
 ADD COLUMN record_ts DATE NOT NULL DEFAULT CURRENT_DATE;
 
 ALTER TABLE auction.Bidder
@@ -357,6 +392,7 @@ select *
 from auction.Address
 
 ---ive checked  tables and current date was add
+	-- also we can check the col befor add
 ALTER TABLE auction.Bidder
 ADD COLUMN full_name VARCHAR GENERATED ALWAYS AS (first_name || ' ' || last_name) STORED;
 -- example of GENERATED ALWAYS AS usage :)
