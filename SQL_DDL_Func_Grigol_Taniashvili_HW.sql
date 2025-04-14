@@ -1,7 +1,5 @@
 --1
-DROP VIEW IF EXISTS sales_revenue_by_category_qtr;
-
-CREATE VIEW public.sales_revenue_by_category_qtr AS
+CREATE OR REPLACE VIEW public.sales_revenue_by_category_qtr AS
     WITH current_qtr AS (
         SELECT 
             EXTRACT(YEAR FROM CURRENT_DATE)::INT AS this_year,
@@ -14,11 +12,11 @@ CREATE VIEW public.sales_revenue_by_category_qtr AS
             EXTRACT(YEAR FROM p.payment_date) AS year,
             EXTRACT(QUARTER FROM p.payment_date) AS quarter
         FROM payment p
-        INNER JOIN rental r ON p.rental_id = r.rental_id
-        INNER JOIN inventory i ON r.inventory_id = i.inventory_id
-        INNER JOIN film f ON i.film_id = f.film_id
-        INNER JOIN film_category fc ON f.film_id = fc.film_id
-        INNER JOIN category c ON fc.category_id = c.category_id
+        INNER JOIN public.rental r ON p.rental_id = r.rental_id
+        INNER JOIN public.inventory i ON r.inventory_id = i.inventory_id
+        INNER JOIN public.film f ON i.film_id = f.film_id
+        INNER JOIN public.film_category fc ON f.film_id = fc.film_id
+        INNER JOIN public.category c ON fc.category_id = c.category_id
         GROUP BY c.name, year, quarter
     )
     SELECT
@@ -29,7 +27,7 @@ CREATE VIEW public.sales_revenue_by_category_qtr AS
     WHERE cs.total_sales > 0;
 
 select *
-from sales_revenue_by_category_qtr
+from sales_revenue_by_category_qtr;
 
 --2
 DROP FUNCTION IF EXISTS get_sales_revenue_by_category_qtr(INT, INT);
@@ -55,12 +53,12 @@ BEGIN
     SELECT
         c.name AS category,
         SUM(p.amount) AS total_sales
-    FROM payment p
-    INNER JOIN rental r ON p.rental_id = r.rental_id
-    INNER JOIN inventory i ON r.inventory_id = i.inventory_id
-    INNER JOIN film f ON i.film_id = f.film_id
-    INNER JOIN film_category fc ON f.film_id = fc.film_id
-    INNER JOIN category c ON fc.category_id = c.category_id
+    FROM public.payment p
+    INNER JOIN public.rental r ON p.rental_id = r.rental_id
+    INNER JOIN public.inventory i ON r.inventory_id = i.inventory_id
+    INNER JOIN public.film f ON i.film_id = f.film_id
+    INNER JOIN public.film_category fc ON f.film_id = fc.film_id
+    INNER JOIN public.category c ON fc.category_id = c.category_id
     WHERE EXTRACT(YEAR FROM p.payment_date) = input_year
       AND EXTRACT(QUARTER FROM p.payment_date) = input_quarter
     GROUP BY c.name
@@ -76,19 +74,19 @@ SELECT * FROM get_sales_revenue_by_category_qtr('2017-2');
 CREATE SCHEMA IF NOT EXISTS core;
 DROP FUNCTION IF EXISTS core.most_popular_films_by_countries(TEXT);
 
-CREATE OR REPLACE FUNCTION core.most_popular_films_by_countries(country_input TEXT)
+CREATE OR REPLACE FUNCTION core.most_popular_films_by_countries(country_input TEXT[])
 RETURNS TABLE (
     country TEXT,
     film TEXT,
     rating public."mpaa_rating",
-    language bpchar(20),
+    language TEXT,
     length INT2,
     release_year public."year"
 ) AS $$
 BEGIN
     -- Validate input
-    IF country_input IS NULL OR LENGTH(TRIM(country_input)) = 0 THEN
-        RAISE EXCEPTION 'Country input cannot be null or empty';
+    IF country_input IS NULL OR array_length(country_input, 1) = 0 THEN
+        RAISE EXCEPTION 'Country input array cannot be null or empty';
     END IF;
 
     RETURN QUERY
@@ -104,20 +102,22 @@ BEGIN
             co.country,
             f.title AS film,
             f.rating,
-            l.name AS language,
+            l.name::TEXT AS language, 
             f.length,
             f.release_year,
             COUNT(*) AS rental_count,
             RANK() OVER (PARTITION BY co.country ORDER BY COUNT(*) DESC) AS rank
-        FROM rental r
-        INNER JOIN inventory i ON r.inventory_id = i.inventory_id
-        INNER JOIN film f ON i.film_id = f.film_id
-        INNER JOIN language l ON f.language_id = l.language_id
-        INNER JOIN customer c ON r.customer_id = c.customer_id
-        INNER JOIN address a ON c.address_id = a.address_id
-        INNER JOIN city ci ON a.city_id = ci.city_id
-        INNER JOIN country co ON ci.country_id = co.country_id
-        WHERE LOWER(co.country) = LOWER(country_input)
+        FROM public.rental r
+        INNER JOIN public.inventory i ON r.inventory_id = i.inventory_id
+        INNER JOIN public.film f ON i.film_id = f.film_id
+        INNER JOIN public.language l ON f.language_id = l.language_id
+        INNER JOIN public.customer c ON r.customer_id = c.customer_id
+        INNER JOIN public.address a ON c.address_id = a.address_id
+        INNER JOIN public.city ci ON a.city_id = ci.city_id
+        INNER JOIN public.country co ON ci.country_id = co.country_id
+        WHERE LOWER(co.country) = ANY (
+            SELECT LOWER(c) FROM unnest(country_input) AS c
+        )
         GROUP BY co.country, f.title, f.rating, l.name, f.length, f.release_year
     ) sub
     WHERE sub.rank = 1;
@@ -127,8 +127,8 @@ $$ LANGUAGE plpgsql;
 
 
 
-SELECT * FROM core.most_popular_films_by_countries('Argentina');
-SELECT * FROM core.most_popular_films_by_countries('BRAZIL');
+SELECT *
+FROM core.most_popular_films_by_countries(ARRAY['United States', 'Canada', 'Germany']);
 
 
 
@@ -154,11 +154,11 @@ BEGIN
         l.name AS language,  
         c.first_name || ' ' || c.last_name AS customer_name,
         r.rental_date::timestamptz AS rental_date  
-    FROM film f
-    INNER JOIN inventory i ON f.film_id = i.film_id   
-    INNER JOIN rental r ON i.inventory_id = r.inventory_id  
-    INNER JOIN customer c ON r.customer_id = c.customer_id  
-    INNER JOIN language l ON f.language_id = l.language_id  
+    FROM public.film f
+    INNER JOIN public.inventory i ON f.film_id = i.film_id   
+    INNER JOIN public.rental r ON i.inventory_id = r.inventory_id  
+    INNER JOIN public.customer c ON r.customer_id = c.customer_id  
+    INNER JOIN public.language l ON f.language_id = l.language_id  
     WHERE LOWER(f.title) LIKE title_pattern  
     ORDER BY f.film_id;
 
@@ -197,7 +197,7 @@ BEGIN
         RAISE EXCEPTION 'Language "%" does not exist in the language table.', lang_name;
     END IF;
  -- Check if this film alredy exists, not to dublicate
-   IF EXISTS (SELECT 1 FROM film WHERE LOWER(title) = LOWER(film_title)) THEN
+   IF EXISTS (SELECT 1 FROM public.film WHERE LOWER(title) = LOWER(film_title)) THEN
         RAISE EXCEPTION 'A film with the title "%" already exists.', film_title;
     END IF;
     -- Insert a new film into the film table
