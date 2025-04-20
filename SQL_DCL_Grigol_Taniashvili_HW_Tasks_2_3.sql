@@ -70,12 +70,12 @@ INSERT INTO
         return_date
     )
 VALUES
-    (101, 202, 1, '2024-11-25', '2024-12-02');
+    (101, 202, 1, '2025-04-19', '2025-05-02');
 
 UPDATE
     rental
 SET
-    return_date = '2024-11-07'
+    return_date = '2025-04-07'
 WHERE
     customer_id = 2;
 
@@ -99,7 +99,7 @@ INSERT INTO
         return_date
     )
 VALUES
-    (102, 203, 3, '2024-11-25', '2024-12-02');
+    (102, 203, 3, '2025-04-19', '2025-05-02');
 
 RESET ROLE;
 
@@ -213,7 +213,7 @@ ALTER TABLE
     payment ENABLE always payment_customer_policy;
 
 SET
-    role client_miłosz_czapla;
+    role client_grigol_taniashvili;
 
 -- change it to your role
 SELECT
@@ -223,7 +223,7 @@ FROM
 WHERE
     customer_id = 1;
 
--- customer id of client_miłosz_czapla 
+-- customer id of client_grigol_taniashvili 
 SELECT
     *
 FROM
@@ -248,6 +248,6 @@ WHERE
 
 RESET role;
 
---DROP ROLE client_miłosz_czapla;
+--DROP ROLE client_grigol_taniashvili;
 --
---REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public FROM client_miłosz_czapla;
+--REVOKE ALL PRIVILEGES ON ALL TABLES IN SCHEMA public --DROP ROLE client_grigol_taniashvili;
