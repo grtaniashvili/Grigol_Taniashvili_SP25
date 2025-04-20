@@ -1,0 +1,23 @@
+1. using column level security e.g.
+grant
+update
+  (title, content) on table
+
+
+2. identification establishes the user's identity using account names or user IDs,
+ authentication verifies it using passwords, biometrics, or security tokens
+
+3. What are the recommended authentication protocols for PostgreSQL?
+	Trust authentication 
+	password-based authentication methods (md5) and password
+	GSSAPI Authentication 
+	SSPI Authentication 
+	Kerberos Authentication 
+	Ident Authentication 
+	Peer Authentication 
+	LDAP Authentication 
+
+4.It is authentication with proxy service like Oauth, then Oauth access postgres database.
+
+It is safeier because user indirecty get access to DB.
+Services like Oauth are focused on user access, thus it is easier to manage, Oauth is responsible for managing permissions
