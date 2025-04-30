@@ -228,9 +228,9 @@ with
 		select *
 		from 
 			crosstab(
-			--in first query we need all column from result table ... using ORDER BY ensures that the distinct products are listed in alphabetical order (toest esli ukazal parametr on uze ne budet imet dublikatov)
+			--in first query we need all column from result table ... using ORDER BY ensures that the distinct products are listed in alphabetical order
 			'SELECT year_month, prod_category, region, total_sale FROM prod_region_date ORDER BY prod_category, region, year_month',
-			--in second query we choose columns for new table (vybiraem zagolovki columns, kotoryje budut otobrazatsja v novoj peredelannoj tablice)
+			--in second query we choose columns for new table
 			'SELECT DISTINCT region FROM prod_region_date ORDER BY region'
 			) as ct(year_month varchar, prod_category varchar, Americas numeric(10, 2), Europe numeric(10, 2))
 )
