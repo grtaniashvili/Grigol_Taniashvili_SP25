@@ -3,31 +3,22 @@
 --
 CREATE OR REPLACE VIEW new_table AS
 SELECT 
-	ROW_NUMBER () OVER (PARTITION BY year ORDER BY country_region, channel_desc) AS row_num,
 	country_region,
 	channel_desc,
 	year,
-	amount_sold,
-	SUM(amount_sold) OVER (PARTITION BY country_region, year) AS total_year_region
-FROM (
-	SELECT 
-		c.country_region,
-		ch.channel_desc,
-		EXTRACT (YEAR FROM s.time_id) AS year,
-		--WHOLE TABLE SUM AMOUNTS GROUP BY YEAR, COUNTRY_REGION, CHANNEL_DESC
-		ROUND(SUM(s.amount_sold), 0) AS amount_sold
-	FROM 
-		sh.sales s
-		INNER JOIN sh.channels ch ON s.channel_id = ch.channel_id
-		INNER JOIN sh.customers cust ON s.cust_id = cust.cust_id
-		INNER JOIN sh.countries c ON c.country_id = cust.country_id
-	WHERE 
-		country_region IN ('Americas', 'Asia', 'Europe') AND 
-		EXTRACT (YEAR FROM s.time_id) IN (1998, 1999, 2000, 2001) AND channel_desc != 'Tele Sales'
-	GROUP BY c.country_region, ch.channel_desc, EXTRACT (YEAR FROM s.time_id)
-	ORDER BY year
-) AS subquery
-ORDER BY year, country_region, channel_desc;
+	ROUND(SUM(s.amount_sold), 0) AS amount_sold,
+	SUM(SUM(s.amount_sold)) OVER (PARTITION BY country_region, year) AS total_year_region
+FROM 
+	sh.sales s
+	INNER JOIN sh.channels ch ON s.channel_id = ch.channel_id
+	INNER JOIN sh.customers cust ON s.cust_id = cust.cust_id
+	INNER JOIN sh.countries c ON c.country_id = cust.country_id
+WHERE 
+	c.country_region IN ('Americas', 'Asia', 'Europe') AND 
+	EXTRACT(YEAR FROM s.time_id) IN (1998, 1999, 2000, 2001) AND 
+	ch.channel_desc != 'Tele Sales'
+GROUP BY c.country_region, ch.channel_desc, EXTRACT(YEAR FROM s.time_id);
+
 --
 
 --QUERY FOR GET ANSWER
@@ -36,34 +27,36 @@ SELECT
 	channel_desc,
 	year,
 	amount_sold,
-	"% by channels",
-	--PRECENT FOR EACH COUNTRY_REGION, CHANNEL_DESC AND YEAR FROM SALES TO TOTAL SALE OF THAT GROUP
+	CONCAT(ROUND(100 * amount_sold / total_year_region, 2), '%') AS "% by channels",
 	CONCAT(ROUND(100 * prev_amount_sold / prev_total_year_region, 2), '%') AS "% previous period",
-	--DIFFERENCE BETWEEN PERCENTS
-	CONCAT(ROUND((ROUND(100 * amount_sold / total_year_region, 2) - ROUND(100 * prev_amount_sold / prev_total_year_region, 2)), 2), '%') AS "% diff"
+	CONCAT(
+		ROUND(
+			(100.0 * amount_sold / total_year_region) - 
+			(100.0 * prev_amount_sold / prev_total_year_region),
+			2
+		), '%'
+	) AS "% diff"
 FROM (
 	SELECT 
-		row_num,
 		country_region,
 		channel_desc,
 		year,
 		amount_sold,
 		total_year_region,
-		CONCAT(ROUND(100 * amount_sold / total_year_region, 2), '%') AS "% by channels",
-		--PUT VALUES IN ANOTHERS CELLS FOR FUTURE COUNTINGS
-		LAG(amount_sold, 9) OVER (ORDER BY year) AS prev_amount_sold,
-		LAG(total_year_region, 9) OVER (ORDER BY year) AS prev_total_year_region
+		LAG(amount_sold) OVER (PARTITION BY country_region, channel_desc ORDER BY year) AS prev_amount_sold,
+		LAG(total_year_region) OVER (PARTITION BY country_region, channel_desc ORDER BY year) AS prev_total_year_region
 	FROM new_table
 ) AS subquery
 WHERE year IN (1999, 2000, 2001);
+
 --
 --TASK 2
 --
 SELECT
 	*,
 	CASE
-		WHEN week_day = 'monday' THEN ROUND(AVG(cum_sum) OVER (ORDER BY time_id ROWS BETWEEN 2 PRECEDING AND 1 FOLLOWING), 2)
-		WHEN week_day = 'friday' THEN ROUND(AVG(cum_sum) OVER (ORDER BY time_id ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING), 2)
+		WHEN LOWER(week_day) = 'monday' THEN ROUND(AVG(cum_sum) OVER (ORDER BY time_id ROWS BETWEEN 2 PRECEDING AND 1 FOLLOWING), 2)
+		WHEN LOWER(week_day) = 'friday' THEN ROUND(AVG(cum_sum) OVER (ORDER BY time_id ROWS BETWEEN 1 PRECEDING AND 2 FOLLOWING), 2)
 		ELSE ROUND(AVG(cum_sum) OVER (ORDER BY time_id ROWS BETWEEN 1 PRECEDING AND 1 FOLLOWING), 2)
 	END AS centered_3_day_avg
 FROM (
@@ -78,6 +71,7 @@ FROM (
 	WHERE EXTRACT (YEAR FROM time_id) = 1999 AND EXTRACT(WEEK FROM time_id) IN (49, 50, 51)
 	GROUP BY time_id
 );
+
 --
 
 --TASK 3
